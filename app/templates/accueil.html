@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block corps %}
+<div class="une">
+  <h1>Brumeville <span>ne dort jamais</span></h1>
+  <p>Chaque affaire a un coupable, un mobile et un alibi qui ment. Vous avez un délai : chaque interrogatoire,
+     chaque fouille, chaque analyse au labo vous coûte des heures. Impossible de tout faire. À vous de choisir.</p>
+  {% if not j %}
+  <form class="connexion" method="post" action="{{ url_for('connexion') }}">
+    <label for="pseudo" class="machine" style="align-self:center">Nom de code</label>
+    <input id="pseudo" name="pseudo" placeholder="ex. Marlowe" required minlength="2" maxlength="20" autocomplete="nickname">
+    <button class="rouge">Prendre son service</button>
+  </form>
+  {% endif %}
+  <div class="regles">
+    <div class="regle"><b>Interroger · 2 h</b>Chacun vous dit où il était, et avec qui. Certains mentent.</div>
+    <div class="regle"><b>Voisinage · 1 h</b>Qui connaît qui ? Les liens apparaissent sur le mur.</div>
+    <div class="regle"><b>Fouiller · 3 h</b>Un lieu livre ses scellés. Ou rien du tout.</div>
+    <div class="regle"><b>Labo · 2 à 10 h</b>Caméras, antennes, empreintes : où était vraiment chacun ?</div>
+  </div>
+</div>
+
+{% if j %}
+<h2>Les affaires en cours <small>{{ affaires|length }} dossiers sur votre bureau</small></h2>
+<div class="affaires">
+  {% for a in affaires %}
+  <article class="chemise">
+    <span class="tampon">{{ a.nature }}</span>
+    {% if a.resolue %}<span class="tampon" style="color:#2f7a50;position:absolute;right:1rem;top:1rem">résolue</span>{% endif %}
+    <h3 style="font-size:1.3rem;margin-top:.4rem">{{ a.titre }}</h3>
+    <p class="machine petit">{{ a.code }} · {{ a.crime_le|jour }}<br>{{ a.lieu }}</p>
+    <p class="machine petit">Délai : <strong>{{ a.delai_minutes|duree }}</strong>
+      {% if a.mon_score is not none %}· meilleur score <strong>{{ a.mon_score }}</strong>{% endif %}
+      <br>Résolue {{ a.resolue_par }} fois à Brumeville</p>
+    <a class="bouton" href="{{ url_for('affaire', code=a.code) }}">{% if a.en_cours %}Reprendre l'enquête{% else %}Ouvrir le dossier{% endif %}</a>
+  </article>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="honneur">
+  <h2>Le tableau d'honneur</h2>
+  {% if classement %}
+  <table><thead><tr><th>Enquêteur</th><th>Résolues</th><th>Jouées</th><th>Points</th></tr></thead><tbody>
+  {% for c in classement %}<tr><td>{{ c.pseudo }}</td><td>{{ c.resolues }}</td><td>{{ c.jouees }}</td><td>{{ c.points }}</td></tr>{% endfor %}
+  </tbody></table>
+  {% else %}<p class="machine" style="color:var(--brume)">Personne n'a encore rendu de rapport.</p>{% endif %}
+</div>
+{% endblock %}

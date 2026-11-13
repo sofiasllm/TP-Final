@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+{% from "_visage.html" import visage %}
+{% block titre %}{{ a.titre }} · Le mur de l'enquêteur{% endblock %}
+{% set restant = t.restant %}
+{% set pct = (100 * restant / t.delai_minutes)|round(1) %}
+{% block barre %}
+<div class="horloge" data-horloge data-debut="{{ a.enquete_le.hour * 60 + a.enquete_le.minute }}"
+     data-utilise="{{ t.utilise }}" {% if avant is not none %}data-avant="{{ avant }}"{% endif %}>
+  <svg class="cadran" viewBox="0 0 100 100" aria-hidden="true">
+    <circle cx="50" cy="50" r="46"/>
+    {% for k in range(12) %}<line class="tic" x1="50" y1="8" x2="50" y2="15" transform="rotate({{ k * 30 }} 50 50)"/>{% endfor %}
+    <line class="aiguille heures" x1="50" y1="50" x2="50" y2="27"/>
+    <line class="aiguille minutes" x1="50" y1="50" x2="50" y2="14"/>
+    <circle class="axe" cx="50" cy="50" r="4"/>
+  </svg>
+  <div class="heure-jeu">{{ t.horloge|jour }}<small>Rapport attendu {{ fin_enquete|jour }}</small></div>
+  <div class="jauge {% if restant < 360 %}urgent{% endif %}">
+    <div class="jauge-fond"><div class="jauge-plein" style="width: {{ pct }}%"
+      {% if avant is not none %}data-avant="{{ (100 * (t.delai_minutes - avant) / t.delai_minutes)|round(1) }}"{% endif %}></div></div>
+    <div class="jauge-texte"><span>Il reste <strong>{{ restant|duree }}</strong></span><span>sur {{ t.delai_minutes|duree }}</span></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block corps %}
+{% if notif %}
+<aside class="compte-rendu {{ notif.sorte }}" role="status" aria-live="polite" data-compte-rendu>
+  <button class="fermer" type="button" aria-label="Fermer" data-fermer>×</button>
+  <p class="cr-entete"><span class="cr-icone" aria-hidden="true">{{ {'interroger': '🗣', 'voisinage': '🧶', 'fouiller': '🔦', 'analyser': '🔬'}[notif.sorte] }}</span>
+    <span>{{ notif.titre }}</span></p>
+  <p class="cr-cout">−{{ notif.cout|duree }} · il reste {{ notif.restant|duree }}</p>
+  {% if notif.resume %}<p class="cr-resume">{{ notif.resume }}</p>{% endif %}
+  <ul>{% for l in notif.lignes %}<li style="--k: {{ loop.index0 }}">{{ l }}</li>{% endfor %}</ul>
+  {% if notif.liens %}<div class="cr-liens">{% for label, href in notif.liens %}<a href="{{ href }}" class="{{ 'principal' if loop.first }}">{{ label }} →</a>{% endfor %}</div>{% endif %}
+</aside>
+{% endif %}
+
+<div class="grille-jeu">
+<aside class="cote">
+  <div class="chemise">
+    <span class="tampon">{{ a.nature }}</span> <span class="tampon" style="color:#1f3d63">confidentiel</span>
+    <h1 style="margin-top:.6rem">{{ a.titre }}</h1>
+    <p class="machine petit">{{ a.code }} · les faits : {{ a.crime_le|jour }}</p>
+    <p>{{ a.resume }}</p>
+    <p class="machine petit">Lieu des faits : <strong>{{ a.lieu }}</strong></p>
+  </div>
+  <div class="carnet" aria-label="Carnet de l'enquête">
+    <h3>Le carnet</h3>
+    <ol>
+      <li><b>{{ a.enquete_le|hm }}</b> Prise de l'affaire.</li>
+      {% for ac in actions %}
+      <li><b>{{ ac.horloge|hm }}</b> {{ {'interroger': 'Interrogé', 'voisinage': 'Voisinage :', 'fouiller': 'Fouillé', 'analyser': 'Labo :'}[ac.type] }} {{ ac.cible }} <span class="petit">(−{{ ac.duree|duree }})</span></li>
+      {% else %}<li class="vide">Rien encore. Par où commencer ?</li>{% endfor %}
+    </ol>
+  </div>
+</aside>
+
+<div>
+  <nav class="onglets" aria-label="Sections">
+    <a href="#personnes">Personnes</a><a href="#lieux">Lieux</a><a href="#scelles">Scellés · {{ indices|length }}</a>
+    <a href="#mur">Le mur</a><a href="#chronologie">Chronologie</a><a href="#rapport">Rapport</a>
+  </nav>
+
+  {% if epuise %}
+  <div class="bandeau"><span>Le temps est écoulé. Le juge d'instruction attend votre rapport.</span>
+    <a class="bouton" href="#rapport">Rédiger le rapport</a></div>
+  {% endif %}
+
+  <section class="bloc" id="personnes">
+    <h2>Les personnes <small>victime, suspects, témoins</small></h2>
+    <div class="polaroids">
+      {% for pe in personnes %}
+      {% set neuf = nouveau in ('interroger-' ~ pe.id, 'voisinage-' ~ pe.id) %}
+      <article class="polaroid {% if neuf %}neuf-carte{% endif %}" id="interroger-{{ pe.id }}"
+               style="--rot: {{ ((pe.id * 37) % 7) - 3 }}deg; --teinte: {{ (pe.id * 47) % 360 }}">
+        <div class="photo {{ pe.role }}"><svg viewBox="0 0 100 78" aria-hidden="true">{{ visage(pe.id, pe.role) }}</svg><span class="role {{ pe.role }}">{{ pe.role }}</span>
+          <span class="plaque">{{ pe.matricule }}</span></div>
+        <h3>{{ pe.prenom }} {{ pe.nom }}</h3>
+        <p class="petit machine">{{ pe.profession }}, {{ a.crime_le.year - pe.naissance.year }} ans · {{ pe.matricule }}</p>
+        {% if pe.id in interroges %}
+          {% for d in decl.get(pe.id, []) %}
+          <div class="pv"><p {% if nouveau == 'interroger-' ~ pe.id %}data-machine{% endif %}>« {{ d.texte }} »</p>
+            <p class="ou">Dit avoir été <strong>{{ d.lieu|a_lieu }}</strong>, {{ d.creneau|creneau }}{% if d.garant %}, avec <strong>{{ d.garant }}</strong>{% endif %}.</p></div>
+          {% else %}<div class="pv"><p class="ou">N'a rien à déclarer.</p></div>{% endfor %}
+        {% endif %}
+        <div class="actions" id="voisinage-{{ pe.id }}">
+          {% if pe.role != 'victime' %}
+            {% if pe.id in interroges %}<span class="fait">✓ interrogé·e</span>{% else %}
+            <form method="post" action="{{ url_for('agir', code=a.code) }}"><input type="hidden" name="type" value="interroger"><input type="hidden" name="cible" value="{{ pe.id }}">
+              <button {% if bareme.interroger > restant %}disabled{% endif %}>Interroger <span class="cout">2 h</span></button></form>{% endif %}
+          {% endif %}
+          {% if pe.id in voisinage %}<span class="fait">✓ liens relevés</span>{% else %}
+          <form method="post" action="{{ url_for('agir', code=a.code) }}"><input type="hidden" name="type" value="voisinage"><input type="hidden" name="cible" value="{{ pe.id }}">
+            <button {% if bareme.voisinage > restant %}disabled{% endif %}>Voisinage <span class="cout">1 h</span></button></form>{% endif %}
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="bloc" id="lieux">
+    <h2>Les lieux <small>le lieu des faits, et ceux qu'on vous a cités</small></h2>
+    <div class="lieux">
+      {% for l in lieux %}
+      <article class="lieu {% if l.crime %}crime{% endif %} {% if nouveau == 'fouiller-' ~ l.id %}neuf-carte{% endif %}" id="fouiller-{{ l.id }}">
+        {% if l.crime %}<span class="tampon" style="align-self:flex-start">lieu des faits</span>{% endif %}
+        <h3>{{ l.nom }}</h3>
+        <p class="petit machine">{{ l.type }} · {{ l.ville }}</p>
+        {% if l.fouille %}<span class="fait">✓ fouillé · {% if l.nb_scelles %}{{ l.nb_scelles }} scellé{{ 's' if l.nb_scelles > 1 }} trouvé{{ 's' if l.nb_scelles > 1 }}{% else %}rien trouvé{% endif %}</span>
+        {% else %}<form method="post" action="{{ url_for('agir', code=a.code) }}"><input type="hidden" name="type" value="fouiller"><input type="hidden" name="cible" value="{{ l.id }}">
+          <button {% if bareme.fouiller > restant %}disabled{% endif %}>Fouiller <span class="cout">3 h</span></button></form>{% endif %}
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="bloc" id="scelles">
+    <h2>Les scellés <small>ce que les fouilles ont rapporté</small></h2>
+    {% if not indices %}<p class="machine" style="color:var(--brume)">Aucun scellé pour l'instant. Fouillez un lieu.</p>{% endif %}
+    <div class="scelles">
+      {% for ix in indices %}
+      <article class="sachet {% if nouveau == 'analyser-' ~ ix.id or nouveau == 'fouiller-' ~ ix.lieu_id %}neuf-carte{% endif %}" id="analyser-{{ ix.id }}">
+        <span class="etiquette">Scellé {{ ix.scelle }} · {{ ix.type_libelle }}</span>
+        <h3>{{ ix.libelle }}</h3>
+        <p class="petit machine">Trouvé {{ ix.lieu|a_lieu }}</p>
+        {% if ix.analyse %}
+        <div class="labo">
+          <dl>{% for k, v in ix.caracteristiques.items() %}<dt>{{ k|replace('_', ' ') }}</dt><dd>{{ v|valeur }}</dd>{% endfor %}</dl>
+          {% for d in ix.designe %}<div class="fiab"><span>{{ d.personne }}</span><span class="fiab-barre" style="--f: {{ d.fiabilite }}%"><i></i></span><span>{{ d.fiabilite }} %</span></div>
+          {% else %}<p style="margin:0">Ne désigne personne.</p>{% endfor %}
+          {% for x in ix.presences %}<p class="situe" style="margin:.3rem 0 0">Situe <strong>{{ x.personne }}</strong> {{ x.lieu|a_lieu }}, {{ x.creneau|creneau }}.</p>{% endfor %}
+        </div>
+        {% else %}
+        <form method="post" action="{{ url_for('agir', code=a.code) }}"><input type="hidden" name="type" value="analyser"><input type="hidden" name="cible" value="{{ ix.id }}">
+          <button {% if ix.duree_analyse > restant %}disabled{% endif %}>Envoyer au labo <span class="cout">{{ ix.duree_analyse|duree }}</span></button></form>
+        {% endif %}
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="bloc" id="mur">
+    <h2>Le mur <small>chaque fil est un lien relevé au voisinage</small></h2>
+    <ul class="legende-fils">
+      <li class="rouge">dette · rivalité · ex</li><li class="orange">couple</li><li class="noir">famille</li>
+      <li class="vert">ami·e</li><li class="gris">collègue</li>
+    </ul>
+    <div class="liege{% if nouveau.startswith('voisinage-') %} secoue{% endif %}">
+      <svg viewBox="0 0 {{ mur.W }} {{ mur.H }}" role="img" aria-label="Le mur des liens entre les personnes">
+        <defs><filter id="lueur" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="4" result="f"/>
+          <feMerge><feMergeNode in="f"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+        {% for f in mur.fils %}
+        <path class="fil {{ f.couleur }}{% if f.neuf %} neuf{% endif %}" data-a="{{ f.a }}" data-b="{{ f.b }}" d="{{ f.d }}"
+              style="--l: {{ f.longueur|round|int }}; --retard: {{ f.retard }}s"/>
+        {% endfor %}
+        {% for n in mur.noeuds %}
+        <g class="pola{% if n.relie %} relie{% endif %}{% if n.neuf %} neuf-pola{% endif %}" data-id="{{ n.id }}"
+           transform="translate({{ n.x }} {{ n.y }}) rotate({{ n.rot }})">
+          <rect class="cadre" x="-52" y="-62" width="104" height="124"/>
+          <rect x="-45" y="-55" width="90" height="70" fill="hsl({{ n.teinte }} 28% 30%)"/>
+          <svg x="-45" y="-55" width="90" height="70" viewBox="0 0 100 78" preserveAspectRatio="xMidYMax slice" class="{{ n.role }}">{{ visage(n.id, n.role) }}</svg>
+          <text x="0" y="34" text-anchor="middle">{{ n.nom }}</text>
+          <text class="r" x="0" y="50" text-anchor="middle">{{ n.role }}</text>
+          <circle class="punaise" cx="0" cy="-52" r="6"/>
+        </g>
+        {% endfor %}
+        {% for f in mur.fils %}
+        <g class="etiq {{ f.couleur }}{% if f.neuf %} neuve{% endif %}" data-a="{{ f.a }}" data-b="{{ f.b }}"
+           transform="translate({{ f.lx|round(1) }} {{ f.ly|round(1) }})" style="--retard: {{ f.retard + 1.2 }}s">
+          <g class="etiq-in"><rect class="etiq-fond" x="{{ -f.largeur / 2 }}" y="-13" width="{{ f.largeur }}" height="24" rx="3"/>
+          <text class="etiq-fil" x="0" y="4" text-anchor="middle">{{ f.type }}</text></g></g>
+        {% endfor %}
+      </svg>
+      {% if not mur.fils %}<p class="vide-mur">Aucun fil pour l'instant : faites une enquête de voisinage pour relever les liens.</p>{% endif %}
+    </div>
+    {% if mur.fils %}
+    <div class="fiche-liens">
+      <h3>Les liens relevés <small>{{ mur.fils|length }} fil{{ 's' if mur.fils|length > 1 }} · survolez une ligne pour la voir sur le mur</small></h3>
+      <ul>
+        {% for f in mur.fils %}
+        <li class="{% if f.neuf %}neuve{% endif %}" data-a="{{ f.a }}" data-b="{{ f.b }}" tabindex="0">
+          <span class="qui">{{ f.nom_a }}</span>
+          <span class="pastille {{ f.couleur }}">{{ f.type }}</span>
+          <span class="qui">{{ f.nom_b }}</span>
+          {% if f.neuf %}<em class="nouveau">nouveau</em>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </section>
+
+  <section class="bloc" id="chronologie">
+    <h2>La chronologie <small>ce que chacun dit, et ce que les scellés prouvent</small></h2>
+    {% if frise %}
+    <div class="frise">
+      <svg viewBox="0 0 {{ frise.W }} {{ frise.H }}" role="img" aria-label="Chronologie de la soirée">
+        <defs><pattern id="hachures" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+          <rect width="3" height="6" fill="rgba(233,179,76,.65)"/></pattern></defs>
+        {% for hh in frise.heures %}<line class="graduation" x1="{{ hh.x }}" y1="18" x2="{{ hh.x }}" y2="{{ frise.H - 6 }}"/>
+          <text class="h" x="{{ hh.x }}" y="13" text-anchor="middle">{{ hh.texte }}</text>{% endfor %}
+        <line class="crime" x1="{{ frise.crime_x }}" y1="18" x2="{{ frise.crime_x }}" y2="{{ frise.H - 6 }}"/>
+        <text x="{{ frise.crime_x + 4 }}" y="{{ frise.H - 10 }}" style="fill:var(--rouge)">les faits</text>
+        {% for rg in frise.rangs %}
+          <text class="nom" x="8" y="{{ rg.y + 4 }}">{{ rg.nom }}</text>
+          {% for b in rg.barres %}
+          <rect class="{{ b.sorte }}" x="{{ b.x }}" y="{{ rg.y - 13 if b.sorte == 'declare' else rg.y + 1 }}" width="{{ b.w }}" height="11">
+            <title>{{ 'Déclare' if b.sorte == 'declare' else 'Prouvé' }} : {{ b.lieu }}, {{ b.texte }}</title></rect>
+          <text x="{{ b.x + 3 }}" y="{{ rg.y - 15 if b.sorte == 'declare' else rg.y + 23 }}" style="font-size:10px">{{ b.lieu }}</text>
+          {% endfor %}
+        {% endfor %}
+      </svg>
+      <div class="legende"><span><i class="l-dec"></i>ce que la personne déclare</span><span><i class="l-att"></i>ce qu'un scellé prouve</span></div>
+    </div>
+    {% else %}<p class="machine" style="color:var(--brume)">La chronologie se remplit quand vous interrogez et analysez.</p>{% endif %}
+  </section>
+
+  <section class="bloc" id="rapport">
+    <h2>Le rapport <small>une seule accusation, définitive</small></h2>
+    <form class="rapport" id="form-accuser" method="post" action="{{ url_for('accuser', code=a.code) }}">
+      <p class="machine">Je soussigné·e, inspecteur·rice {{ j.pseudo }}, désigne comme auteur des faits :</p>
+      <fieldset class="tapissage"><legend>Le tapissage · {{ personnes|selectattr('role', 'equalto', 'suspect')|list|length }} suspects</legend>
+        {% for pe in personnes if pe.role == 'suspect' %}
+        <label class="suspect-carte">
+          <input type="radio" name="suspect" value="{{ pe.id }}" required data-nom="{{ pe.prenom }} {{ pe.nom }}">
+          <svg viewBox="0 0 100 78" aria-hidden="true">{{ visage(pe.id) }}</svg>
+          <span class="numero">{{ loop.index }}</span>
+          <span class="nom">{{ pe.prenom }} {{ pe.nom }}</span>
+          <span class="petit">{{ pe.profession }}{% if pe.id in interroges %} · interrogé·e{% endif %}</span>
+        </label>
+        {% endfor %}
+      </fieldset>
+      <button class="rouge" style="justify-self:start">Signer et accuser</button>
+    </form>
+    <dialog id="confirmer"><div class="confirmation">
+      <h3>Accuser <span data-nom></span> ?</h3>
+      <p class="machine">Votre rapport part chez le juge. Vous ne pourrez plus enquêter sur cette affaire.</p>
+      <div class="actions"><button class="rouge" data-valider>Signer</button><button data-annuler>Encore un doute</button></div>
+    </div></dialog>
+  </section>
+</div>
+</div>
+{% endblock %}

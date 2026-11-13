@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block titre %}Le mur de l'enquêteur{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Oswald:wght@400;600;700&family=Special+Elite&display=swap">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header class="barre">
+  <a class="logo" href="{{ url_for('accueil') }}">LE MUR <span>DE L'ENQUÊTEUR</span></a>
+  {% block barre %}{% endblock %}
+  <span class="qui">{% if j %}Inspecteur·rice <strong>{{ j.pseudo }}</strong> · <a href="{{ url_for('deconnexion') }}">rendre son badge</a>{% endif %}</span>
+</header>
+{% with messages = get_flashed_messages(with_categories=true) %}{% for cat, m in messages %}<div class="toast {{ 'info' if cat == 'info' else 'alerte' }}" role="status">{{ m }}</div>{% endfor %}{% endwith %}
+<main class="page">{% block corps %}{% endblock %}</main>
+<script src="{{ url_for('static', filename='jeu.js') }}"></script>
+</body>
+</html>

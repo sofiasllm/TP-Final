@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% from "_visage.html" import visage %}
+{% block corps %}
+<div class="verdict">
+  <div class="grand-tampon {{ 'ok' if p.reussie else 'ko' }}">{{ 'Affaire résolue' if p.reussie else 'Erreur judiciaire' }}</div>
+  <h1 style="margin-top:2rem">{% if p.reussie %}C'était bien {{ p.coupable }}.{% else %}Vous avez accusé {{ p.accuse }}. C'était {{ p.coupable }}.{% endif %}</h1>
+  <p class="machine">{{ p.titre }} · {{ p.code }} · {{ nb }} action{{ 's' if nb > 1 }} · {{ p.utilise|duree }} d'enquête sur {{ p.delai_minutes|duree }}</p>
+  <div class="fiches-verdict">
+    {% if not p.reussie %}<figure class="fiche-verdict innocent"><svg viewBox="0 0 100 78" aria-hidden="true">{{ visage(p.accuse_id) }}</svg>
+      <figcaption>{{ p.accuse }}<small>accusé·e à tort</small></figcaption></figure>{% endif %}
+    <figure class="fiche-verdict coupable"><svg viewBox="0 0 100 78" aria-hidden="true">{{ visage(p.coupable_id) }}</svg>
+      <figcaption>{{ p.coupable }}<small>coupable</small></figcaption></figure>
+  </div>
+  <div class="score">{{ p.score }} points</div>
+  {% if p.reussie %}<p class="machine">50 pour le bon coupable, plus 10 par heure d'avance sur le délai.</p>{% endif %}
+</div>
+<div class="chemise solution">
+  <h2 style="color:var(--encre)">Le fin mot de l'affaire</h2>
+  {% if mobile %}<p><strong>Le mobile.</strong> Sur le mur, {{ p.coupable }} et la victime étaient liés par une histoire de <strong>{{ mobile }}</strong>. Un proche de la victime l'avait laissé entendre.</p>{% endif %}
+  {% for m in mensonges %}<p><strong>L'alibi qui ment.</strong> {{ p.coupable }} disait être {{ m.dit|a_lieu }}, mais le scellé {{ m.scelle }} ({{ m.libelle }}) le ou la place {{ m.etait|a_lieu }}, {{ m.creneau|creneau }} : à l'heure des faits.</p>{% endfor %}
+  {% if garant %}<p><strong>Le complice.</strong> Son garant, {{ garant.nom }}, fait partie de ses amis. La caméra de l'entrée les montre arriver ensemble, bien après le début de soirée qu'ils jurent avoir passé là.</p>{% endif %}
+  <p><strong>Le menteur qui n'a rien fait.</strong> Un autre suspect mentait aussi sur sa soirée : la caméra de la salle de jeu du casino le montrait à la roulette, à l'heure des faits. Il cachait ses dettes de jeu, pas un crime.</p>
+  <p><strong>La fausse piste.</strong> Le suspect sans alibi avait bien laissé ses empreintes sur place, mais des heures avant les faits : la caméra du hall le montrait.</p>
+  <div class="actions" style="margin-top:1rem"><a class="bouton" href="{{ url_for('accueil') }}">Retour aux affaires</a>
+    <a class="bouton rouge" href="{{ url_for('affaire', code=p.code) }}">Rejouer cette affaire</a></div>
+</div>
+{% endblock %}
